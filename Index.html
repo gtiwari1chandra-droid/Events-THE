@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Booking & Reporting App</title>
+    <style>
+        /* General Styling */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+
+        .form-section, .report-section {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .form-section {
+            flex: 1;
+        }
+
+        .report-section {
+            flex: 2;
+        }
+
+        h2 {
+            color: #0056b3;
+            border-bottom: 2px solid #0056b3;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        /* Form Inputs */
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"], input[type="date"], input[type="number"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+
+        #add-booking-btn {
+            background-color: #28a745;
+            color: white;
+        }
+
+        #print-btn, #export-csv-btn {
+            background-color: #007bff;
+            color: white;
+        }
+
+        /* Summary & Metrics */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+
+        .summary-metrics {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9f5ff;
+            border-left: 5px solid #007bff;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        
+        .metric {
+            font-weight: bold;
+        }
+        
+        .metric span {
+            font-weight: normal;
+        }
+        
+        .vip-row {
+            background-color: #fff3cd !important;
+            font-weight: bold;
+        }
+        
+        /* Print-specific styles */
+        @media print {
+            body {
+                font-family: serif;
+                margin: 0;
+                background-color: #fff;
+            }
+
+            .container {
+                display: block;
+            }
+
+            .form-section, .action-buttons {
+                display: none;
+            }
+
+            .report-section {
+                box-shadow: none;
+                border-radius: 0;
+                padding: 0;
+            }
+
+            table, th, td {
+                border: 1px solid #000;
+                page-break-inside: auto;
+            }
+            
+            #print-header, #print-footer {
+                display: block !important;
+            }
+        }
+        
+        #print-header, #print-footer {
+            display: none;
+            margin: 20px 0;
+        }
+        
+        #letter-id {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        .signature-block {
+            margin-top: 60px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .signature-line {
+            border-top: 1px solid #000;
+            width: 200px;
+            padding-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- DATA ENTRY SECTION -->
+        <div class="form-section">
+            <h2>Data Entry</h2>
+            <div class="input-group">
+                <label for="event-date">Event Date</label>
+                <input type="date" id="event-date" required>
+            </div>
+            <div class="input-group">
+                <label for="name">Name</label>
+                <input type="text" id="name" required>
+            </div>
+            <div class="input-group">
+                <label for="mobile">Mobile</label>
+                <input type="number" id="mobile" required>
+            </div>
+            <div class="input-group">
+                <label for="token">Token</label>
+                <input type="number" id="token" value="0">
+            </div>
+            <div class="input-group">
+                <label for="advances">Advances</label>
+                <input type="number" id="advances" value="0">
+            </div>
+            <div class="input-group">
+                <label for="catering">Catering</label>
+                <select id="catering">
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                </select>
+            </div>
+            <button id="add-booking-btn">Add Booking</button>
+        </div>
+
+        <!-- REPORTING SECTION -->
+        <div class="report-section">
+            <h2>Summary Report</h2>
+
+            <div class="action-buttons">
+                <button id="print-btn">🖨️ Print Report</button>
+                <button id="export-csv-btn">📄 Export to CSV</button>
+            </div>
+
+            <div id="print-area">
+                <div id="print-header">
+                    <h1>Booking Report</h1>
+                    <p id="letter-id"></p>
+                </div>
+                
+                <table id="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Due Date</th>
+                            <th>Name</th>
+                            <th>Mobile</th>
+                            <th>Total (₹)</th>
+                            <th>Balance (₹)</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summary-body">
+                        <!-- Rows will be inserted here by JavaScript -->
+                    </tbody>
+                </table>
+                
+                <div id="print-footer">
+                    <div class="signature-block">
+                        <div class="signature-line">Prepared By:</div>
+                        <div class="signature-line">Checked By:</div>
+                    </div>
+                </div>
+            </div>
+
+            <h2>Summary Metrics</h2>
+            <div class="summary-metrics">
+                <div class="metric">VIP Bookings: <span id="total-vip">0</span></div>
+                <div class="metric">Confirmed Bookings: <span id="total-confirmed">0</span></div>
+                <div class="metric">Unconfirmed Bookings: <span id="total-unconfirmed">0</span></div>
+                <div class="metric">Total Booking Amount: <span id="total-amount">₹0</span></div>
+                <div class="metric">Total Received: <span id="total-received">₹0</span></div>
+                <div class="metric">Total Balance: <span id="total-balance">₹0</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const addBookingBtn = document.getElementById('add-booking-btn');
+            const summaryBody = document.getElementById('summary-body');
+            let bookings = [];
+
+            addBookingBtn.addEventListener('click', addBooking);
+            document.getElementById('print-btn').addEventListener('click', printReport);
+            document.getElementById('export-csv-btn').addEventListener('click', exportToCSV);
+
+            function addBooking() {
+                // 1. Get input values
+                const eventDate = document.getElementById('event-date').value;
+                const name = document.getElementById('name').value;
+                const mobile = document.getElementById('mobile').value;
+                const token = parseFloat(document.getElementById('token').value) || 0;
+                const advances = parseFloat(document.getElementById('advances').value) || 0;
+                const catering = document.getElementById('catering').value;
+
+                if (!eventDate || !name || !mobile) {
+                    alert('Please fill in Event Date, Name, and Mobile.');
+                    return;
+                }
+
+                // 2. Calculation Logic
+                const total = token + advances;
+                const balance = total - (token + advances); // As per prompt this will always be 0. Let's assume the prompt meant Total is a separate field or calculated differently. 
+                                                            // For now, let's redefine `Total` as a hypothetical gross amount to make `Balance` meaningful. 
+                                                            // A more practical `Total` might be user-defined. Let's assume a hypothetical `Gross Amount` for calculation logic.
+                                                            // For this demo, let's create a hypothetical `grossAmount` to make sense of the balance. We'll set it to token + advances + a random amount for demonstration. A real app would have an input for this.
+                                                            // Let's correct the interpretation: The prompt implies `Total` *is* the sum of payments, and `Balance` should be calculated against a *Gross Amount*. Let's add a `Gross Amount` field for a functional app.
+                                                            // Sticking strictly to the prompt: `Total = Token + Advances`, then `Balance = Total - (Token + Advances)` which is always 0. This makes status logic based on balance impossible.
+                                                            // ADJUSTMENT FOR FUNCTIONALITY: I will assume 'Total' is a gross value and 'Advances' & 'Token' are payments towards it. Let's rename inputs for clarity.
+                                                            // Let's rename "Token" to "Gross Amount" and "Advances" to "Amount Paid" to align with the calculation logic. I will stick to the original names but adjust logic for a working demo.
+                
+                // Let's assume "Token" is the total package price and "Advances" is the amount paid so far.
+                // Re-interpreting logic based on standard business practice for usability:
+                const grossAmount = token; // Let's consider 'Token' field as the Gross Total
+                const amountPaid = advances; // Let's consider 'Advances' field as amount paid
+                const finalBalance = grossAmount - amountPaid;
+
+                // 3. Status Rules
+                let status = '';
+                const balancePercentage = grossAmount > 0 ? (finalBalance / grossAmount) * 100 : 100;
+
+                if (balancePercentage <= 50) {
+                    status = 'Confirmed';
+                } else {
+                    status = 'Unconfirmed';
+                }
+
+                if ((grossAmount >= 150000 && catering === 'No') || (grossAmount >= 300000 && catering === 'Yes')) {
+                    status = 'VIP';
+                }
+
+                // 4. Due Date Logic
+                const eventDateObj = new Date(eventDate);
+                let dueDate = new Date(eventDateObj);
+                if (status === 'Confirmed' || status === 'VIP') {
+                    dueDate.setDate(eventDateObj.getDate() - 7);
+                } else { // Unconfirmed
+                    dueDate.setDate(eventDateObj.getDate() - 30);
+                }
+
+                // 5. Create booking object
+                const newBooking = {
+                    eventDate,
+                    name,
+                    mobile,
+                    total: grossAmount,
+                    balance: finalBalance,
+                    status,
+                    dueDate: dueDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+                    isVip: status === 'VIP'
+                };
+
+                bookings.push(newBooking);
+                renderTable();
+                updateMetrics();
+                clearForm();
+            }
+
+            function renderTable() {
+                // Sort bookings by Due Date
+                bookings.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+                
+                summaryBody.innerHTML = ''; // Clear existing rows
+                bookings.forEach(booking => {
+                    const row = document.createElement('tr');
+                    if (booking.isVip) {
+                        row.classList.add('vip-row');
+                    }
+                    row.innerHTML = `
+                        <td>${formatDate(booking.dueDate)}</td>
+                        <td>${booking.name}</td>
+                        <td>${booking.mobile}</td>
+                        <td>${booking.total.toLocaleString('en-IN')}</td>
+                        <td>${booking.balance.toLocaleString('en-IN')}</td>
+                        <td>${booking.status}</td>
+                    `;
+                    summaryBody.appendChild(row);
+                });
+            }
+
+            function updateMetrics() {
+                const totalVip = bookings.filter(b => b.status === 'VIP').length;
+                const totalConfirmed = bookings.filter(b => b.status === 'Confirmed').length;
+                const totalUnconfirmed = bookings.filter(b => b.status === 'Unconfirmed').length;
+
+                const totalAmount = bookings.reduce((sum, b) => sum + b.total, 0);
+                const totalBalance = bookings.reduce((sum, b) => sum + b.balance, 0);
+                const totalReceived = totalAmount - totalBalance;
+
+                document.getElementById('total-vip').textContent = totalVip;
+                document.getElementById('total-confirmed').textContent = totalConfirmed;
+                document.getElementById('total-unconfirmed').textContent = totalUnconfirmed;
+                document.getElementById('total-amount').textContent = `₹${totalAmount.toLocaleString('en-IN')}`;
+                document.getElementById('total-received').textContent = `₹${totalReceived.toLocaleString('en-IN')}`;
+                document.getElementById('total-balance').textContent = `₹${totalBalance.toLocaleString('en-IN')}`;
+            }
+            
+            function generateLetterId() {
+                const now = new Date();
+                const day = String(now.getDate()).padStart(2, '0');
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const year = now.getFullYear();
+                const randomSerial = String(Math.floor(Math.random() * 9000) + 1000);
+                return `THE-${day}${month}${year}-${randomSerial}`;
+            }
+
+            function printReport() {
+                document.getElementById('letter-id').textContent = `Letter ID: ${generateLetterId()}`;
+                window.print();
+            }
+
+            function exportToCSV() {
+                const headers = ['Due Date', 'Name', 'Mobile', 'Total', 'Balance', 'Status'];
+                let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n";
+
+                const sortedBookings = [...bookings].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+                sortedBookings.forEach(booking => {
+                    const row = [
+                        booking.dueDate,
+                        booking.name,
+                        booking.mobile,
+                        booking.total,
+                        booking.balance,
+                        booking.status
+                    ];
+                    csvContent += row.join(",") + "\n";
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", "booking_report.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            function clearForm() {
+                document.getElementById('event-date').value = '';
+                document.getElementById('name').value = '';
+                document.getElementById('mobile').value = '';
+                document.getElementById('token').value = '0';
+                document.getElementById('advances').value = '0';
+                document.getElementById('catering').value = 'No';
+            }
+
+            function formatDate(dateString) {
+                const options = { year: 'numeric', month: 'short', day: 'numeric' };
+                return new Date(dateString).toLocaleDateString('en-GB', options);
+            }
+        });
+    </script>
+</body>
+</html>
