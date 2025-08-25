@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Booking Summary Report</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 20px;
+      background-color: #f4f6f8;
+      color: #333;
+    }
+    h2 {
+      color: #2c3e50;
+      border-bottom: 2px solid #ccc;
+      padding-bottom: 5px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      background-color: #fff;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+    }
+    th {
+      background-color: #34495e;
+      color: white;
+    }
+    .vip {
+      background-color: #fff8b3;
+      font-weight: bold;
+    }
+    .btn {
+      padding: 10px 20px;
+      margin: 5px;
+      background-color: #2ecc71;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .btn:hover {
+      background-color: #27ae60;
+    }
+    .signature {
+      margin-top: 40px;
+    }
+    @media print {
+      body {
+        font-family: 'Times New Roman', serif;
+        font-size: 12pt;
+        margin: 1in;
+        background-color: white;
+      }
+      .btn, input, select, button {
+        display: none !important;
+      }
+      th, td {
+        border: 1px solid #000;
+        padding: 6px;
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Event Booking Entry</h2>
+  <table id="entryTable">
+    <thead>
+      <tr>
+        <th>Event Date</th>
+        <th>Name</th>
+        <th>Mobile</th>
+        <th>Token</th>
+        <th>Advances</th>
+        <th>Catering</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="entryBody"></tbody>
+  </table>
+
+  <button class="btn" onclick="addEntry()">➕ Add Entry</button>
+
+  <h2>Summary Report</h2>
+  <div id="letterId"></div>
+  <table id="summaryTable">
+    <thead>
+      <tr>
+        <th>Due Date</th>
+        <th>Name</th>
+        <th>Mobile</th>
+        <th>Total</th>
+        <th>Balance</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="summaryBody"></tbody>
+  </table>
+
+  <div id="metrics"></div>
+
+  <div class="signature">
+    <p>Prepared By: ____________________</p>
+    <p>Checked By: _____________________</p>
+  </div>
+
+  <button class="btn" onclick="window.print()">🖨️ Print Report</button>
+  <button class="btn" onclick="exportToCSV()">📤 Export to Sheet</button>
+
+  <script>
+    function addEntry() {
+      const tbody = document.getElementById("entryBody");
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td><input type="date" /></td>
+        <td><input type="text" /></td>
+        <td><input type="text" /></td>
+        <td><input type="number" /></td>
+        <td><input type="number" /></td>
+        <td>
+          <select>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        </td>
+        <td><button onclick="processRow(this)">✔️ Process</button></td>
+      `;
+      tbody.appendChild(row);
+    }
+
+    function processRow(btn) {
+      const row = btn.closest("tr");
+      const eventDate = new Date(row.cells[0].children[0].value);
+      const name = row.cells[1].children[0].value;
+      const mobile = row.cells[2].children[0].value;
+      const token = parseFloat(row.cells[3].children[0].value) || 0;
+      const advance = parseFloat(row.cells[4].children[0].value) || 0;
+      const catering = row.cells[5].children[0].value;
+
+      const total = token + advance;
+      const balance = total - (token + advance); // always 0 unless logic changes
+      let status = "Unconfirmed";
+      if (balance <= total * 0.5) status = "Confirmed";
+      if ((catering === "No" && total >= 150000) || (catering === "Yes" && total >= 300000)) status = "VIP";
+
+      const dueDate = new Date(eventDate);
+      dueDate.setDate(dueDate.getDate() - (status === "Confirmed" ? 7 : 30));
+
+      const summaryRow = document.createElement("tr");
+      summaryRow.innerHTML = `
+        <td>${dueDate.toISOString().split("T")[0]}</td>
+        <td>${name}</td>
+        <td>${mobile}</td>
+        <td>${total.toFixed(2)}</td>
+        <td>${balance.toFixed(2)}</td>
+        <td>${status}</td>
+      `;
+      if (status === "VIP") summaryRow.classList.add("vip");
+      document.getElementById("summaryBody").appendChild(summaryRow);
+
+      updateMetrics();
+      generateLetterId();
+    }
+
+    function updateMetrics() {
+      const rows = document.querySelectorAll("#summaryBody tr");
+      let vip = 0, confirmed = 0, unconfirmed = 0, totalBooking = 0, totalReceived = 0, totalBalance = 0;
+
+      rows.forEach(row => {
+        const total = parseFloat(row.cells[3].innerText) || 0;
+        const balance = parseFloat(row.cells[4].innerText) || 0;
+        const status = row.cells[5].innerText;
+
+        totalBooking += total;
+        totalBalance += balance;
+        totalReceived += total - balance;
+
+        if (status === "VIP") vip++;
+        else if (status === "Confirmed") confirmed++;
+        else if (status === "Unconfirmed") unconfirmed++;
+      });
+
+      document.getElementById("metrics").innerHTML = `
+        <p><strong>Total VIP:</strong> ${vip}</p>
+        <p><strong>Total Confirmed:</strong> ${confirmed}</p>
+        <p><strong>Total Unconfirmed:</strong> ${unconfirmed}</p>
+        <p><strong>Total Booking Amount:</strong> ₹${totalBooking.toFixed(2)}</p>
+        <p><strong>Total Received:</strong> ₹${totalReceived.toFixed(2)}</p>
+        <p><strong>Total Balance:</strong> ₹${totalBalance.toFixed(2)}</p>
+      `;
+    }
+
+    function generateLetterId() {
+      const today = new Date();
+      const id = `THE-${today.getDate().toString().padStart(2, '0')}${(today.getMonth()+1).toString().padStart(2, '0')}${today.getFullYear()}-${Math.floor(Math.random()*1000)}`;
+      document.getElementById("letterId").innerText = `Letter ID: ${id}`;
+    }
+
+    function exportToCSV() {
+      let csv = "Due Date,Name,Mobile,Total,Balance,Status\n";
+      const rows = document.querySelectorAll("#summaryTable tbody tr");
+      rows.forEach(row => {
+        const cols = row.querySelectorAll("td");
+        const data = [...cols].map(td => `"${td.innerText}"`).join(",");
+        csv += data + "\n";
+      });
+
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Booking_Summary.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+
+</body>
+</html>
